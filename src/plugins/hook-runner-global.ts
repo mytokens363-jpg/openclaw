@@ -45,9 +45,16 @@ export function initializeGlobalHookRunner(registry: GlobalHookRunnerRegistry): 
     },
   });
 
-  const hookCount = registry.hooks.length;
+  // Count typed hooks (api.on() registrations) not legacy hooks (registry.hooks).
+  // registry.hooks is the old internal hook system; registry.typedHooks is what
+  // plugins register via api.on(). Reading the wrong array caused the log to always
+  // report 0 hooks even when typed hooks were successfully registered, making it
+  // impossible to verify hook initialization from logs (issue #5513).
+  const hookCount = registry.typedHooks.length;
   if (hookCount > 0) {
-    log.debug(`hook runner initialized with ${hookCount} registered hooks`);
+    log.info(`hook runner initialized with ${hookCount} registered typed hooks`);
+  } else {
+    log.debug("hook runner initialized (no typed hooks registered)");
   }
 }
 
@@ -69,9 +76,20 @@ export function getGlobalPluginRegistry(): GlobalHookRunnerRegistry | null {
 
 /**
  * Check if any hooks are registered for a given hook name.
+ *
+ * Returns false (not throws) when the hook runner hasn't been initialized yet,
+ * which is the correct behavior for call sites that guard with this function.
+ * A debug log is emitted so unexpected null states surface in verbose mode.
  */
 export function hasGlobalHooks(hookName: Parameters<HookRunner["hasHooks"]>[0]): boolean {
-  return getState().hookRunner?.hasHooks(hookName) ?? false;
+  const { hookRunner } = getState();
+  if (!hookRunner) {
+    // Hook runner not yet initialized — plugins may not have loaded yet.
+    // This is expected during early gateway startup but not during agent runs.
+    getLog().debug(`hasGlobalHooks("${hookName}") called before hook runner initialized`);
+    return false;
+  }
+  return hookRunner.hasHooks(hookName);
 }
 
 export async function runGlobalGatewayStopSafely(params: {

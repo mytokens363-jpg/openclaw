@@ -35,6 +35,10 @@ export function createMockPluginRegistry(
     channels: [],
     channelSetups: [],
     providers: [],
+    // cliBackends and conversationBindingResolvedHandlers were missing from the mock,
+    // causing any code that accesses these fields on a test registry to get undefined
+    // instead of an empty array. Added to match createEmptyPluginRegistry() (issue #5513).
+    cliBackends: [],
     speechProviders: [],
     mediaUnderstandingProviders: [],
     imageGenerationProviders: [],
@@ -46,6 +50,7 @@ export function createMockPluginRegistry(
     cliRegistrars: [],
     services: [],
     commands: [],
+    conversationBindingResolvedHandlers: [],
     diagnostics: [],
   } as unknown as PluginRegistry;
 }
