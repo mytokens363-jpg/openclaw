@@ -1,0 +1,25 @@
+{
+  "name": "@openclaw/memory-pgvector",
+  "version": "2026.4.1",
+  "description": "PostgreSQL + pgvector long-term memory for OpenClaw. Local-first: embeddings via any OpenAI-compatible endpoint (Qwen3, Ollama, etc.)",
+  "type": "module",
+  "dependencies": {
+    "@sinclair/typebox": "0.34.49",
+    "pg": "^8.13.3",
+    "pgvector": "^0.2.0",
+    "openai": "^6.33.0"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "install": {
+      "npmSpec": "@openclaw/memory-pgvector",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.4.1"
+    },
+    "release": {
+      "publishToNpm": true
+    }
+  }
+}

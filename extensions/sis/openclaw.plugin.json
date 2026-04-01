@@ -1,0 +1,68 @@
+{
+  "id": "sis",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "inferenceUrl": {
+        "type": "string",
+        "description": "OpenAI-compatible endpoint for lesson extraction (your local Qwen3 node)."
+      },
+      "inferenceModel": {
+        "type": "string",
+        "description": "Model name for lesson extraction."
+      },
+      "inferenceApiKey": {
+        "type": "string",
+        "description": "API key for inference endpoint. Use 'none' for local servers."
+      },
+      "dbPath": {
+        "type": "string",
+        "description": "Path to the SQLite database for lesson storage."
+      },
+      "maxLessonsInPrompt": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 20
+      },
+      "minConfidenceToInject": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "enabled": {
+        "type": "boolean"
+      }
+    }
+  },
+  "uiHints": {
+    "inferenceUrl": {
+      "label": "Inference URL",
+      "placeholder": "http://192.168.1.201:8080/v1",
+      "help": "OpenAI-compatible endpoint for local lesson extraction (your Qwen3 node)."
+    },
+    "inferenceModel": {
+      "label": "Inference Model",
+      "placeholder": "qwen3.5-122b",
+      "help": "Model name used for lesson extraction after each agent run."
+    },
+    "dbPath": {
+      "label": "Database Path",
+      "placeholder": "~/.openclaw/sis.db",
+      "help": "SQLite database path for lesson and pattern storage.",
+      "advanced": true
+    },
+    "maxLessonsInPrompt": {
+      "label": "Max Lessons in Prompt",
+      "placeholder": "5",
+      "help": "Maximum number of SIS lessons to inject before each agent run.",
+      "advanced": true
+    },
+    "minConfidenceToInject": {
+      "label": "Min Confidence to Inject",
+      "placeholder": "0.5",
+      "help": "Minimum lesson confidence score (0-1) required for injection.",
+      "advanced": true
+    }
+  }
+}

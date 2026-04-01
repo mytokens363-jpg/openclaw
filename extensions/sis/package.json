@@ -1,0 +1,24 @@
+{
+  "name": "@openclaw/sis",
+  "version": "2026.4.1",
+  "description": "Self-Improving System for OpenClaw. Extracts lessons from agent runs, stores patterns, injects relevant knowledge before each session. Local inference only.",
+  "type": "module",
+  "dependencies": {
+    "@sinclair/typebox": "0.34.49",
+    "better-sqlite3": "^11.9.1",
+    "openai": "^6.33.0"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "install": {
+      "npmSpec": "@openclaw/sis",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.4.1"
+    },
+    "release": {
+      "publishToNpm": true
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "id": "memory-pgvector",
+  "kind": "memory",
+  "uiHints": {
+    "pgUrl": {
+      "label": "PostgreSQL URL",
+      "sensitive": true,
+      "placeholder": "postgresql://localhost:5432/openclaw",
+      "help": "PostgreSQL connection string. Database must have pgvector extension installed."
+    },
+    "embedding.baseUrl": {
+      "label": "Embedding API Base URL",
+      "placeholder": "http://192.168.1.201:8080/v1",
+      "help": "OpenAI-compatible embedding endpoint. Point at your local Qwen3 node."
+    },
+    "embedding.model": {
+      "label": "Embedding Model",
+      "placeholder": "qwen3.5-122b",
+      "help": "Model name as loaded in your local inference server."
+    },
+    "embedding.apiKey": {
+      "label": "Embedding API Key",
+      "sensitive": true,
+      "placeholder": "none",
+      "help": "API key for the embedding endpoint. Use 'none' for local servers."
+    },
+    "embedding.dimensions": {
+      "label": "Embedding Dimensions",
+      "placeholder": "1536",
+      "help": "Vector dimensions for your embedding model. Qwen3 = 1536.",
+      "advanced": true
+    },
+    "autoCapture": {
+      "label": "Auto-Capture",
+      "help": "Automatically capture important information from conversations."
+    },
+    "autoRecall": {
+      "label": "Auto-Recall",
+      "help": "Automatically inject relevant memories into context before each run."
+    },
+    "recallLimit": {
+      "label": "Recall Limit",
+      "placeholder": "5",
+      "help": "Max memories to inject per run.",
+      "advanced": true
+    },
+    "significanceThreshold": {
+      "label": "Significance Threshold",
+      "placeholder": "3",
+      "help": "Minimum significance score (1-10) for auto-recall injection.",
+      "advanced": true
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "pgUrl": {
+        "type": "string"
+      },
+      "embedding": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "baseUrl": { "type": "string" },
+          "model": { "type": "string" },
+          "apiKey": { "type": "string" },
+          "dimensions": { "type": "number" }
+        },
+        "required": ["baseUrl", "model"]
+      },
+      "autoCapture": { "type": "boolean" },
+      "autoRecall": { "type": "boolean" },
+      "recallLimit": { "type": "number", "minimum": 1, "maximum": 20 },
+      "significanceThreshold": { "type": "number", "minimum": 1, "maximum": 10 }
+    },
+    "required": ["embedding"]
+  }
+}
