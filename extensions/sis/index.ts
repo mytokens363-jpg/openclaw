@@ -513,6 +513,14 @@ export default definePluginEntry({
 
     let initialized = false;
 
+    // Lazy init — store initializes on first hook fire rather than waiting
+    // for service start(), fixing silent failures when hook fires before service.
+    const ensureInit = async (): Promise<boolean> => {
+      if (initialized) return true;
+      try { await store.init(); initialized = true; return true; }
+      catch (err) { api.logger.warn(`sis: init failed: ${String(err)}`); return false; }
+    };
+
     api.logger.info(
       `sis: registered (inference: ${inferenceUrl}, model: ${model}, db: ${dbPath})`,
     );
@@ -522,7 +530,7 @@ export default definePluginEntry({
     // ==========================================================================
 
     api.on("before_prompt_build", async (event) => {
-      if (!initialized) return;
+      if (!(await ensureInit())) return;
       if (!event.prompt || event.prompt.length < 5) return;
 
       try {
@@ -545,7 +553,7 @@ export default definePluginEntry({
     // ==========================================================================
 
     api.on("agent_end", async (event) => {
-      if (!initialized) return;
+      if (!(await ensureInit())) return;
       if (!event.success || !event.messages || event.messages.length === 0) return;
 
       try {
