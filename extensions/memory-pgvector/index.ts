@@ -729,7 +729,7 @@ export default definePluginEntry({
 
     // Auto-recall: inject relevant memories before agent processes each message
     if (autoRecall) {
-      api.on("before_agent_start", async (event) => {
+      api.on("before_prompt_build", async (event) => {
         if (!event.prompt || event.prompt.length < 5) return;
 
         try {
@@ -818,6 +818,40 @@ export default definePluginEntry({
     // Service
     // ==========================================================================
 
+    // Register runtime so status probe reports "available"
+    api.registerMemoryRuntime({
+      async getMemorySearchManager({ cfg, agentId, purpose }) {
+        return {
+          manager: {
+            status: () => ({
+              backend: "builtin" as const,
+              provider: "pgvector",
+              model: embeddings.model,
+              files: 0,
+              chunks: 0,
+            }),
+            probeEmbeddingAvailability: async () => {
+              try {
+                await embeddings.embed("health check");
+                return { ok: true };
+              } catch (err) {
+                return { ok: false, error: String(err) };
+              }
+            },
+            probeVectorAvailability: async () => {
+              try {
+                const c = await store.count();
+                return c >= 0;
+              } catch { return false; }
+            },
+          },
+        };
+      },
+      resolveMemoryBackendConfig() {
+        return { backend: "builtin" as const };
+      },
+    });
+
     api.registerService({
       id: "memory-pgvector",
       start: async () => {
@@ -826,6 +860,7 @@ export default definePluginEntry({
         api.logger.info(
           `memory-pgvector: ready — ${count} memories in store`,
         );
+
       },
       stop: async () => {
         await store.close();
