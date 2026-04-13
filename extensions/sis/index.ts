@@ -17,11 +17,20 @@
  * Pattern types: temporal | sequential | failure | success
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Type } from "@sinclair/typebox";
 import OpenAI from "openai";
 import type Database from "better-sqlite3";
 import { definePluginEntry, type OpenClawPluginApi } from "./api.js";
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/** Deterministic lesson ID from content — enables dedup + reinforcement */
+function hashLesson(text: string): string {
+  return createHash("sha256").update(text.trim().toLowerCase()).digest("hex").slice(0, 32);
+}
 
 // ============================================================================
 // Config defaults
@@ -188,7 +197,10 @@ class SISStore {
       VALUES
         (@id, @type, @context, @action, @outcome, @lesson, @correction, @confidence,
          @occurrences, @last_seen, @tags, @related_tools, @created_at)
-      ON CONFLICT(id) DO NOTHING
+      ON CONFLICT(id) DO UPDATE SET
+        occurrences = occurrences + 1,
+        confidence = MIN(0.95, confidence + 0.05),
+        last_seen = excluded.last_seen
     `);
 
     const insertMany = db.transaction((rows: Lesson[]) => {
@@ -197,7 +209,7 @@ class SISStore {
 
     const now = Date.now();
     const rows: Lesson[] = lessons.map((l) => ({
-      id: randomUUID(),
+      id: hashLesson(l.lesson),
       type: l.type,
       context: l.context,
       action: l.action,
@@ -230,7 +242,7 @@ class SISStore {
 
     for (const p of patterns) {
       stmt.run({
-        id: randomUUID(),
+        id: hashLesson(p.description),
         type: p.type,
         description: p.description,
         occurrences: 1,
@@ -280,6 +292,18 @@ class SISStore {
         )
         .all(minConfidence, limit) as Lesson[];
     }
+  }
+
+  touchLessons(ids: string[]): void {
+    const db = this.getDb();
+    const stmt = db.prepare(
+      `UPDATE sis_lessons SET last_seen = ? WHERE id = ?`,
+    );
+    const now = Date.now();
+    const tx = db.transaction(() => {
+      for (const id of ids) stmt.run(now, id);
+    });
+    tx();
   }
 
   boostLesson(id: string, delta = 0.1): void {
@@ -536,6 +560,9 @@ export default definePluginEntry({
 
         const context = formatLessonsForPrompt(lessons);
         if (!context) return;
+
+        // Touch last_seen on injected lessons so they don't decay
+        store.touchLessons(lessons.map((l) => l.id));
 
         api.logger.info(`sis: injecting ${lessons.length} lessons into context`);
 
