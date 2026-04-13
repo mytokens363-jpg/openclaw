@@ -312,33 +312,63 @@ class LocalEmbeddings {
 // ============================================================================
 
 const MEMORY_TYPE_PATTERNS: Array<{ type: MemoryType; pattern: RegExp }> = [
-  { type: "preference", pattern: /prefer|like|love|hate|want|don'?t like|dislike|always use|never use/i },
-  { type: "decision", pattern: /decided|will use|going to use|we'?ll|chosen|picked|selected/i },
-  { type: "identity", pattern: /i am|i'?m|my name|call me|i work|my job|my role/i },
-  { type: "relationship", pattern: /my (wife|husband|partner|boss|colleague|friend|team)/i },
-  { type: "event", pattern: /yesterday|last week|last month|happened|occurred|meeting|appointment/i },
-  { type: "fact", pattern: /is|are|has|have|was|were|located|based in|works at/i },
+  { type: "preference", pattern: /\b(i|we)\b.{0,30}\b(prefer|like|love|hate|dislike|always use|never use)\b/i },
+  { type: "decision", pattern: /\b(i|we)\b.{0,30}\b(decided|will use|going to use|chosen|picked|selected|switching to)\b/i },
+  { type: "identity", pattern: /\b(i am|i'?m a|my name is|call me|i work at|my job is|my role is)\b/i },
+  { type: "relationship", pattern: /\bmy (wife|husband|partner|boss|colleague|friend|team|son|daughter|brother|sister)\b/i },
+  { type: "event", pattern: /\b(yesterday|last week|last month)\b.{0,40}\b(happened|occurred|we did|i did|meeting|shipped|deployed|launched)\b/i },
+  { type: "fact", pattern: /\b(located in|based in|works at|lives in|moved to|running on|deployed on)\b/i },
 ];
 
 const CAPTURE_TRIGGERS = [
-  /remember|zapamatuj/i,
-  /prefer|like|hate|want|love/i,
-  /i am|i'?m|my (name|job|role|company)/i,
-  /decided|will use|going to/i,
-  /always|never|important|critical/i,
+  // Explicit memory requests
+  /\b(remember|zapamatuj|don'?t forget|keep in mind|note that)\b/i,
+  // First-person preferences (require "I/we" + signal)
+  /\b(i|we)\b.{0,20}\b(prefer|like|love|hate|dislike|want to use|don'?t want)\b/i,
+  // First-person identity
+  /\b(i am|i'?m a|my name is|call me|i work at|i live in|i moved to)\b/i,
+  // First-person decisions
+  /\b(i|we)\b.{0,20}\b(decided|will use|going to use|switching to|chose|picked)\b/i,
+  // Key project/infra facts (first-person or possessive)
+  /\b(my|our)\b.{0,20}\b(project|server|node|stack|repo|cluster|setup|config)\b/i,
+  // Email addresses (contact info)
   /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
+  // IP + port patterns (infra facts)
+  /\b(running|deployed|hosted|serving)\b.{0,30}\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/i,
 ];
 
 const SKIP_PATTERNS = [
   /^</, // XML/HTML tags
   /\*\*.*\n-/, // Markdown lists (agent output)
   /<relevant-memories>/,
-  /^(yes|no|ok|okay|sure|thanks|thank you)$/i,
+  // One-word acks and short responses
+  /^(yes|no|ok|okay|sure|thanks|thank you|yep|nah|nope|got it|done|cool|nice)$/i,
+  // System/log noise
+  /^\[?(plugins?|openclaw|gateway|memory|sis|error|warn|info)\]?/i,
+  /^\d{2}:\d{2}/, // Timestamps at start (log lines)
+  /LaunchAgent|launchctl|pid \d+/i,
+  // Shell commands and output
+  /^(\$|#|>>>|\.\.\.|dariusvitkus@|root@)/, // Shell prompts
+  /^(cat|grep|sed|curl|cd|ls|find|psql|npm|pnpm|node|python)\s/i, // CLI commands
+  // Code and structured data
+  /^(import|export|const|let|var|function|class|interface|type )\s/i,
+  /^\{.*[:{]/, // JSON-like
+  /```/, // Code fences
+  // Agent/bot output that leaked in
+  /^(Here'?s|I'?ll|Let me|Sure,|Okay,|Great,|Looking at|Based on)/i,
+  // Status/diagnostic output
+  /^\s*\|.*\|\s*$/, // Table rows
+  /^(Schema|ERROR|WARN|INFO|DEBUG|OK|FAIL)/,
+  // Questions (usually not worth storing)
+  /^(what|how|why|where|when|which|can you|could you|do you|is there|are there)\b/i,
 ];
 
 function shouldCapture(text: string): boolean {
   if (!text || text.length < 15 || text.length > DEFAULT_CAPTURE_MAX_CHARS) return false;
-  if (SKIP_PATTERNS.some((p) => p.test(text))) return false;
+  // Minimum word count — short fragments are noise
+  const wordCount = text.trim().split(/\s+/).length;
+  if (wordCount < 4) return false;
+  if (SKIP_PATTERNS.some((p) => p.test(text.trim()))) return false;
   return CAPTURE_TRIGGERS.some((p) => p.test(text));
 }
 

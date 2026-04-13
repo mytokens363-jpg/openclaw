@@ -343,37 +343,17 @@ class LessonExtractor {
   }
 
   async extract(conversation: string): Promise<LessonExtraction | null> {
-    const systemPrompt = `You are a lesson extraction system. Analyze the AI agent conversation and extract actionable lessons.
+    const systemPrompt = `You are a lesson extraction system. Output ONLY the JSON below. No thinking. No explanation. No markdown. Start your response with { and end with }.
 
-Return ONLY a JSON object with this exact schema — no markdown, no preamble:
-{
-  "lessons": [
-    {
-      "type": "mistake|success|workaround|discovery",
-      "context": "What was being attempted (1 sentence)",
-      "action": "What action was taken (1 sentence)",
-      "outcome": "What happened as a result (1 sentence)",
-      "lesson": "What should be remembered for next time (1-2 sentences)",
-      "correction": "How to do it correctly (if type=mistake, else null)",
-      "tags": ["tag1", "tag2"],
-      "related_tools": ["tool_name1"]
-    }
-  ],
-  "patterns": [
-    {
-      "type": "temporal|sequential|failure|success",
-      "description": "Short description of the pattern (1 sentence)"
-    }
-  ]
-}
+EXACT OUTPUT FORMAT:
+{"lessons":[{"type":"discovery","context":"one sentence","action":"one sentence","outcome":"one sentence","lesson":"one sentence","correction":null,"tags":["tag1"],"related_tools":[]}],"patterns":[]}
 
 Rules:
-- Only extract lessons that would genuinely help future runs
-- Leave lessons array empty if nothing significant happened
-- Leave patterns array empty if no clear patterns
-- Max 3 lessons and 2 patterns per extraction
-- Be specific — generic lessons like "be careful" are useless
-- Tags should be lowercase, hyphenated (e.g. "whatsapp", "tool-call", "api-error")`;
+- type must be one of: mistake, success, workaround, discovery
+- correction is null unless type=mistake
+- Max 3 lessons, 2 patterns
+- Leave arrays empty if nothing significant
+- Start response with { immediately`;
 
     try {
       const response = await this.client.chat.completions.create({
@@ -385,17 +365,34 @@ Rules:
             content: `Extract lessons from this conversation:\n\n${conversation.slice(0, 6000)}`,
           },
         ],
-        max_tokens: 1500,
+        max_tokens: 4000,
         temperature: 0.2,
       });
 
       const raw = response.choices[0]?.message?.content ?? "";
       const cleaned = raw
+        .replace(/<think>[\s\S]*?<\/think>/gi, "")
+        .replace(/Thinking Process:[\s\S]*?(?=\{)/gi, "")
         .replace(/```json\s*/gi, "")
         .replace(/```\s*/g, "")
         .trim();
 
-      const parsed = JSON.parse(cleaned) as LessonExtraction;
+      // Extract JSON — try progressively from each { until we find valid JSON with lessons+patterns
+      let parsed: LessonExtraction | null = null;
+      let searchFrom = 0;
+      while (searchFrom < cleaned.length) {
+        const nextBrace = cleaned.indexOf('{', searchFrom);
+        if (nextBrace === -1) break;
+        try {
+          const candidate = JSON.parse(cleaned.slice(nextBrace)) as LessonExtraction;
+          if (Array.isArray(candidate.lessons) && Array.isArray(candidate.patterns)) {
+            parsed = candidate;
+            break;
+          }
+        } catch { /* try next { */ }
+        searchFrom = nextBrace + 1;
+      }
+      if (!parsed) return null;
 
       // Validate structure
       if (!Array.isArray(parsed.lessons) || !Array.isArray(parsed.patterns)) {

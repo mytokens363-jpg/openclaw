@@ -14,8 +14,7 @@
     ],
     "install": {
       "npmSpec": "@openclaw/sis",
-      "defaultChoice": "npm",
-      "minHostVersion": ">=2026.4.1"
+      "defaultChoice": "npm"
     },
     "release": {
       "publishToNpm": true

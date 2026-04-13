@@ -15,8 +15,7 @@
     ],
     "install": {
       "npmSpec": "@openclaw/memory-pgvector",
-      "defaultChoice": "npm",
-      "minHostVersion": ">=2026.4.1"
+      "defaultChoice": "npm"
     },
     "release": {
       "publishToNpm": true
